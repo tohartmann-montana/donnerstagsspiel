@@ -32,6 +32,14 @@ STREAMLIT_CLOUD = (
 # Set USE_DATABASE=true in environment or .env to use Supabase instead of Excel
 # In cloud environment, always use database mode (Excel files not deployed)
 USE_DATABASE = os.environ.get("USE_DATABASE", "false").lower() == "true"
+
+# Also check Streamlit secrets for USE_DATABASE flag
+try:
+    if st.secrets.get("USE_DATABASE", "false").lower() == "true":
+        USE_DATABASE = True
+except Exception:
+    pass
+
 if STREAMLIT_CLOUD:
     USE_DATABASE = True  # Force database mode in cloud
 
