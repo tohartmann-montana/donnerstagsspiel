@@ -226,6 +226,53 @@ song_index[normalized] = {
 ```
 **Learning:** Always normalize for comparison, display original for users
 
+### ❌ Mistake 12: Missing Supabase Secrets in Cloud
+**What happened:** App deployed but shows "Database not available" error
+**Why wrong:** Forgot to add secrets in Streamlit Cloud dashboard
+**Solution:** Always verify secrets are configured:
+```toml
+# In Streamlit Cloud → App Settings → Secrets
+[supabase]
+url = "https://xxx.supabase.co"
+anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+USE_DATABASE = "true"
+```
+**Verification:** Check `is_database_available()` returns True after deployment
+
+### ❌ Mistake 13: Using SERVICE_KEY in Cloud Secrets
+**What happened:** Put `SUPABASE_SERVICE_KEY` in Streamlit Cloud secrets
+**Why wrong:** Service key has admin privileges, should never be exposed in client-side app
+**Solution:**
+- Cloud: Use only `anon_key` (read + RLS-protected writes)
+- Local push script: Use `SERVICE_KEY` in `.env` (never committed)
+```bash
+# .env (local only, in .gitignore)
+SUPABASE_SERVICE_KEY=eyJ...  # Only for push_to_supabase.py
+```
+
+### ❌ Mistake 14: Forgetting to Run schema.sql Before Push
+**What happened:** `push_to_supabase.py` fails with "relation does not exist"
+**Why wrong:** Tables and functions don't exist in new Supabase project
+**Solution:** Always run schema.sql in Supabase SQL Editor before first data push:
+1. Go to Supabase Dashboard → SQL Editor
+2. Paste contents of `schema.sql`
+3. Click "Run" → Verify "Success" message
+4. Then run `python push_to_supabase.py`
+
+### ❌ Mistake 15: Cloud Caching Stale Database Data
+**What happened:** Data pushed to Supabase but app shows old data
+**Why wrong:** `@st.cache_data(ttl=300)` caches for 5 minutes
+**Solution:** Either wait 5 minutes or manually clear cache:
+```python
+# In db.py - clear_cache() function
+load_all_data_from_db.clear()
+get_all_songs_from_db.clear()
+get_all_contributors_from_db.clear()
+get_top_songs_db.clear()
+```
+**Note:** For immediate updates during testing, reduce TTL or add a cache-clear button
+
 ## Song Normalization Logic (Sprint 5)
 
 ### Why Normalization?
@@ -310,22 +357,78 @@ donnerstagsspiel/
 ├── data/
 │   ├── song_matcher_mock.xlsx     # Mock data for testing
 │   ├── donnerstagsspiel-data.xlsx # Real production data
-│   └── likes.json                 # User likes storage
+│   └── likes.json                 # User likes storage (local only)
 ├── .streamlit/
-│   └── config.toml                # Theme configuration
+│   ├── config.toml                # Theme configuration
+│   └── secrets.toml.example       # Template for cloud secrets
 ├── .claude/
 │   └── settings.local.json        # Claude Code settings
-├── main.py                        # Main application
+├── main.py                        # Main application (dual-mode)
+├── db.py                          # Database functions (Supabase REST API)
+├── schema.sql                     # PostgreSQL schema for Supabase
+├── push_to_supabase.py            # Script to push Excel data to cloud
 ├── create_mock_data.py            # Mock data generator
 ├── benchmark.py                   # Performance testing
 ├── validate_excel.py              # Excel structure validation
 ├── validate_data.py               # Data validation utility
 ├── find_duplicates.py             # Duplicate song finder
 ├── requirements.txt               # Dependencies
+├── runtime.txt                    # Python version for Streamlit Cloud
+├── .env.example                   # Template for local environment vars
+├── .gitignore                     # Git exclusions
 ├── README.md                      # User documentation
+├── USER_GUIDE.md                  # Tester guide (German)
 ├── CLAUDE.md                      # This file (dev documentation)
 └── IMPLEMENTATION_PLAN.md         # Historical implementation plan
 ```
+
+## Database Architecture (Cloud Mode)
+
+### Tables (schema.sql)
+```sql
+runden      → Round/worksheet metadata (name, display_name)
+clusters    → Seed track groups (runde_id, column_index, seed_track, seed_contributor)
+songs       → Individual songs (cluster_id, song_name, contributor, row_index)
+likes       → Song likes counter (song_name, like_count)
+```
+
+### Views & Functions
+- `song_search_view` - Materialized view joining all tables for fast queries
+- `search_songs(query, threshold, max_results)` - pg_trgm fuzzy search
+- `get_song_clusters(song_name)` - Find all clusters containing a song
+- `get_top_songs(max_results)` - Top songs by normalized occurrence count
+- `increment_like(song_name)` - Add/increment like count
+- `get_all_likes()` - Return all likes as dict
+
+### Key Database Functions (db.py)
+```python
+# Configuration
+get_supabase_credentials()  # From st.secrets or os.environ
+supabase_request(method, endpoint, data, params)  # REST API wrapper
+is_database_available()  # Test connection
+
+# Data Loading
+load_all_data_from_db()  # All songs from song_search_view
+get_all_songs_from_db()  # Unique song names for autocomplete
+get_all_contributors_from_db()  # Unique contributors
+
+# Search & Connections
+search_songs_db(query, fuzzy_threshold)  # Uses pg_trgm
+get_song_connections_db(song_name)  # Find clusters for a song
+get_cluster_songs(cluster_id)  # All songs in a cluster
+
+# Likes
+get_likes_db()  # All likes as {song: count}
+add_like_db(song_name)  # Increment like counter
+
+# Statistics
+get_top_songs_db(limit)  # Top songs by occurrence
+get_contributor_songs_db(name)  # Songs by contributor
+```
+
+### Caching Strategy
+All database read functions use `@st.cache_data(ttl=300)` (5 minute cache).
+Use `clear_cache()` to force refresh after data updates.
 
 ## Key Functions
 
@@ -678,9 +781,9 @@ st.session_state.last_search_query     # Preserved search when drilling
 
 ---
 
-**Last Updated:** 2026-02-02
-**Version:** 3.0 (Song normalization & Best Of)
-**Status:** Production-ready with deduplication and rankings
+**Last Updated:** 2026-02-03
+**Version:** 4.0 (Cloud Deployment MVP)
+**Status:** Production-ready, deployed on Streamlit Cloud with Supabase backend
 
 ## Sprint History
 - **Sprint 1 (COMPLETED):** Performance optimizations (85% improvement)
@@ -710,3 +813,15 @@ st.session_state.last_search_query     # Preserved search when drilling
   - Tabbed interface (Search / Best Of)
   - Pagination system for all views (5/10/15 items per page)
   - Updated `build_song_index()` to track normalized names and variants
+- **Sprint 6 (COMPLETED):** Cloud Deployment MVP
+  - Dual-mode architecture: Excel (local) ↔ Supabase (cloud)
+  - `db.py` - Database functions using Supabase REST API
+  - `schema.sql` - PostgreSQL schema with pg_trgm fuzzy search
+  - `push_to_supabase.py` - CLI tool to migrate Excel data to cloud
+  - Auto-detection of Streamlit Cloud environment
+  - Feature flag system (`USE_DATABASE`, `STREAMLIT_CLOUD`)
+  - Database functions: search, connections, likes, contributors, top songs
+  - `runtime.txt` for Python version specification
+  - `USER_GUIDE.md` - German user guide for testers
+  - Updated README with cloud deployment instructions
+  - Secrets configuration via `st.secrets` for cloud deployment

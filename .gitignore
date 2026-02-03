@@ -10,7 +10,16 @@ ENV/
 
 # Data files
 data/*.xlsx
+!data/song_matcher_mock.xlsx
+data/likes.json
+data/feedback.json
 !data/.gitkeep
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Windows artifacts
+nul
 
 # IDE
 .vscode/
