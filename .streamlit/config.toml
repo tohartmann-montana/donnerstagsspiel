@@ -1,0 +1,12 @@
+[theme]
+primaryColor = "#8B5CF6"           # Vibrant Purple (Accent)
+backgroundColor = "#0F172A"         # Deep Navy/Slate (Dark)
+secondaryBackgroundColor = "#1E293B"  # Lighter Slate
+textColor = "#E2E8F0"              # Light Grey (High Contrast)
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python create_mock_data.py:*)",
+      "Bash(python3:*)",
+      "Bash(where:*)",
+      "Bash(timeout 3 tail:*)",
+      "Bash(python -m pip:*)",
+      "Bash(python -m streamlit:*)",
+      "Bash(timeout 5 cat:*)",
+      "Bash(python:*)",
+      "Bash(pkill:*)",
+      "Bash(timeout:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(ping:*)",
+      "Bash(dir:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
