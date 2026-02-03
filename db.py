@@ -104,6 +104,51 @@ def supabase_request(method: str, endpoint: str, data=None, params=None):
         return None
 
 
+def supabase_request_all(endpoint: str, params: dict = None) -> list:
+    """
+    Fetch ALL rows from Supabase using pagination.
+    Works around the 1000 row server limit by fetching in batches.
+    """
+    url, key = _get_credentials()
+    if not url or not key:
+        return []
+
+    all_results = []
+    batch_size = 1000
+    offset = 0
+
+    while True:
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Range": f"{offset}-{offset + batch_size - 1}"
+        }
+
+        try:
+            response = requests.get(f"{url}{endpoint}", headers=headers, params=params, timeout=30)
+
+            if response.status_code not in (200, 206):
+                break
+
+            batch = response.json() if response.text else []
+            if not batch:
+                break
+
+            all_results.extend(batch)
+
+            # Check if we got less than batch_size (last page)
+            if len(batch) < batch_size:
+                break
+
+            offset += batch_size
+
+        except requests.exceptions.RequestException:
+            break
+
+    return all_results
+
+
 def is_database_available() -> bool:
     """Check if database connection is available and configured."""
     url, key = _get_credentials()
@@ -221,10 +266,11 @@ def load_all_data_from_db():
     """
     Load all song data from Supabase.
     Returns data in a format compatible with the existing app structure.
+    Uses pagination to fetch all rows (Supabase limits to 1000 per request).
     """
-    result = supabase_request("GET", "/rest/v1/song_search_view", params={"select": "*", "limit": "10000"})
+    result = supabase_request_all("/rest/v1/song_search_view", params={"select": "*"})
 
-    if result is None:
+    if not result:
         return None
 
     return {
@@ -237,9 +283,9 @@ def load_all_data_from_db():
 @st.cache_data(ttl=300)
 def get_all_songs_from_db() -> list:
     """Get all unique song names for autocomplete."""
-    result = supabase_request("GET", "/rest/v1/songs", params={"select": "song_name", "limit": "10000"})
+    result = supabase_request_all("/rest/v1/songs", params={"select": "song_name"})
 
-    if result is None:
+    if not result:
         return []
 
     songs = sorted(set(row['song_name'] for row in result))
@@ -249,18 +295,18 @@ def get_all_songs_from_db() -> list:
 @st.cache_data(ttl=300)
 def get_all_contributors_from_db() -> list:
     """Get all unique contributor names."""
-    # Get contributors from songs table
-    result = supabase_request("GET", "/rest/v1/songs",
-                              params={"select": "contributor", "contributor": "not.is.null", "limit": "10000"})
+    # Get contributors from songs table (using pagination)
+    result = supabase_request_all("/rest/v1/songs",
+                                  params={"select": "contributor", "contributor": "not.is.null"})
 
-    if result is None:
+    if not result:
         return []
 
     contributors = set(row['contributor'] for row in result if row.get('contributor'))
 
     # Also get seed contributors from clusters
-    result2 = supabase_request("GET", "/rest/v1/clusters",
-                               params={"select": "seed_contributor", "seed_contributor": "not.is.null", "limit": "10000"})
+    result2 = supabase_request_all("/rest/v1/clusters",
+                                   params={"select": "seed_contributor", "seed_contributor": "not.is.null"})
 
     if result2:
         seed_contributors = set(row['seed_contributor'] for row in result2 if row.get('seed_contributor'))
