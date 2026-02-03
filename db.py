@@ -222,7 +222,7 @@ def load_all_data_from_db():
     Load all song data from Supabase.
     Returns data in a format compatible with the existing app structure.
     """
-    result = supabase_request("GET", "/rest/v1/song_search_view", params={"select": "*"})
+    result = supabase_request("GET", "/rest/v1/song_search_view", params={"select": "*", "limit": "10000"})
 
     if result is None:
         return None
@@ -237,7 +237,7 @@ def load_all_data_from_db():
 @st.cache_data(ttl=300)
 def get_all_songs_from_db() -> list:
     """Get all unique song names for autocomplete."""
-    result = supabase_request("GET", "/rest/v1/songs", params={"select": "song_name"})
+    result = supabase_request("GET", "/rest/v1/songs", params={"select": "song_name", "limit": "10000"})
 
     if result is None:
         return []
@@ -251,7 +251,7 @@ def get_all_contributors_from_db() -> list:
     """Get all unique contributor names."""
     # Get contributors from songs table
     result = supabase_request("GET", "/rest/v1/songs",
-                              params={"select": "contributor", "contributor": "not.is.null"})
+                              params={"select": "contributor", "contributor": "not.is.null", "limit": "10000"})
 
     if result is None:
         return []
@@ -260,7 +260,7 @@ def get_all_contributors_from_db() -> list:
 
     # Also get seed contributors from clusters
     result2 = supabase_request("GET", "/rest/v1/clusters",
-                               params={"select": "seed_contributor", "seed_contributor": "not.is.null"})
+                               params={"select": "seed_contributor", "seed_contributor": "not.is.null", "limit": "10000"})
 
     if result2:
         seed_contributors = set(row['seed_contributor'] for row in result2 if row.get('seed_contributor'))
