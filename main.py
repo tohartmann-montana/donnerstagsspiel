@@ -768,9 +768,8 @@ def main():
         initial_sidebar_state="collapsed"
     )
 
-    # Check for admin mode via URL parameter (?admin=true)
-    query_params = st.query_params
-    is_admin = query_params.get("admin", "false").lower() == "true"
+    # Admin mode disabled for public release
+    is_admin = False
 
     # Initialize theme state
     if 'light_mode' not in st.session_state:
@@ -1071,8 +1070,8 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    # Branded header with feedback and theme toggle
-    col_header, col_feedback, col_toggle = st.columns([5.5, 0.5, 0.5])
+    # Branded header with theme toggle
+    col_header, col_toggle = st.columns([6, 0.5])
 
     with col_header:
         st.markdown("""
@@ -1085,14 +1084,6 @@ def main():
                 </div>
             </div>
         """, unsafe_allow_html=True)
-
-    with col_feedback:
-        # Feedback button
-        if st.button("💬", key="feedback_btn", help="Feedback geben"):
-            st.session_state.show_feedback_form = not st.session_state.show_feedback_form
-            st.session_state.feedback_submitted = False
-            st.session_state.feedback_error = None
-            st.rerun()
 
     with col_toggle:
         # Theme toggle button
@@ -1118,14 +1109,6 @@ def main():
     if 'last_search_query' not in st.session_state:
         st.session_state.last_search_query = ""
 
-    # Feedback form state
-    if 'show_feedback_form' not in st.session_state:
-        st.session_state.show_feedback_form = False
-    if 'feedback_submitted' not in st.session_state:
-        st.session_state.feedback_submitted = False
-    if 'feedback_error' not in st.session_state:
-        st.session_state.feedback_error = None
-
     # Pagination state
     if 'page_search' not in st.session_state:
         st.session_state.page_search = 1
@@ -1141,68 +1124,6 @@ def main():
         st.session_state.prev_selected_song = None
     if 'prev_selected_contributor' not in st.session_state:
         st.session_state.prev_selected_contributor = None
-
-    # ==========================================================================
-    # FEEDBACK FORM
-    # ==========================================================================
-    if st.session_state.show_feedback_form:
-        st.markdown("---")
-        st.markdown("### 💬 Feedback geben")
-
-        if st.session_state.feedback_submitted:
-            st.success("Vielen Dank für dein Feedback!")
-            if st.button("Schließen", key="close_feedback"):
-                st.session_state.show_feedback_form = False
-                st.session_state.feedback_submitted = False
-                st.rerun()
-        else:
-            if st.session_state.feedback_error:
-                st.error(st.session_state.feedback_error)
-                st.session_state.feedback_error = None
-
-            with st.form(key="feedback_form"):
-                feedback_type = st.selectbox(
-                    "Art des Feedbacks:",
-                    ["Bug melden", "Feature-Wunsch", "Sonstiges"]
-                )
-
-                description = st.text_area(
-                    "Beschreibung:",
-                    placeholder="Beschreibe dein Feedback so detailliert wie möglich...",
-                    max_chars=1000,
-                    height=150
-                )
-
-                contact = st.text_input(
-                    "Kontakt (optional):",
-                    placeholder="E-Mail oder Name für Rückfragen",
-                    max_chars=200
-                )
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    submitted = st.form_submit_button("📤 Absenden", type="primary", use_container_width=True)
-                with col2:
-                    cancelled = st.form_submit_button("❌ Abbrechen", use_container_width=True)
-
-                if submitted:
-                    if not description or len(description.strip()) < 10:
-                        st.session_state.feedback_error = "Bitte gib eine Beschreibung ein (mind. 10 Zeichen)"
-                        st.rerun()
-                    else:
-                        type_map = {"Bug melden": "Bug", "Feature-Wunsch": "Feature", "Sonstiges": "Other"}
-                        success = add_feedback(type_map[feedback_type], description.strip(), contact.strip())
-                        if success:
-                            st.session_state.feedback_submitted = True
-                        else:
-                            st.session_state.feedback_error = "Feedback konnte nicht gespeichert werden"
-                        st.rerun()
-
-                if cancelled:
-                    st.session_state.show_feedback_form = False
-                    st.rerun()
-
-        st.markdown("---")
 
     # ==========================================================================
     # DATA LOADING - Database or Excel mode
