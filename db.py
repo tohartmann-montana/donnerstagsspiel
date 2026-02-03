@@ -127,8 +127,25 @@ def get_database_diagnostics() -> dict:
         'key_configured': False,
         'url_preview': None,
         'connection_test': None,
-        'song_count': 0
+        'song_count': 0,
+        'secrets_source': None,
+        'secrets_keys': []
     }
+
+    # Debug: Check what's in st.secrets
+    try:
+        # List all available secret keys
+        diagnostics['secrets_keys'] = list(st.secrets.keys()) if hasattr(st.secrets, 'keys') else ['(no keys method)']
+
+        # Check which source provided credentials
+        if "supabase" in st.secrets:
+            diagnostics['secrets_source'] = 'st.secrets.supabase'
+        elif "SUPABASE_URL" in st.secrets:
+            diagnostics['secrets_source'] = 'st.secrets (top-level)'
+        else:
+            diagnostics['secrets_source'] = 'os.environ'
+    except Exception as e:
+        diagnostics['secrets_source'] = f'error: {e}'
 
     # Check credentials
     url, key = _get_credentials()

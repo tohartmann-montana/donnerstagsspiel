@@ -1226,6 +1226,8 @@ def main():
             if USE_DATABASE and DB_DIAGNOSTICS:
                 st.error("Datenbankverbindung fehlgeschlagen")
                 with st.expander("Details anzeigen"):
+                    st.write(f"**Secrets Source:** {DB_DIAGNOSTICS.get('secrets_source', 'unknown')}")
+                    st.write(f"**Secrets Keys:** {DB_DIAGNOSTICS.get('secrets_keys', [])}")
                     st.write(f"**URL konfiguriert:** {'Ja' if DB_DIAGNOSTICS.get('url_configured') else 'Nein'}")
                     st.write(f"**Key konfiguriert:** {'Ja' if DB_DIAGNOSTICS.get('key_configured') else 'Nein'}")
                     if DB_DIAGNOSTICS.get('url_preview'):
