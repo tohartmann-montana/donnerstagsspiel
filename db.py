@@ -115,6 +115,86 @@ def is_database_available() -> bool:
     return result is not None
 
 
+def get_database_diagnostics() -> dict:
+    """
+    Get detailed diagnostics about database connection.
+    Returns dict with status, error messages, and connection details.
+    """
+    diagnostics = {
+        'available': False,
+        'error': None,
+        'url_configured': False,
+        'key_configured': False,
+        'url_preview': None,
+        'connection_test': None,
+        'song_count': 0
+    }
+
+    # Check credentials
+    url, key = _get_credentials()
+    diagnostics['url_configured'] = bool(url)
+    diagnostics['key_configured'] = bool(key)
+
+    if url:
+        # Show partial URL for debugging (hide project ID partially)
+        diagnostics['url_preview'] = url[:30] + "..." if len(url) > 30 else url
+
+    if not url:
+        diagnostics['error'] = "SUPABASE_URL not configured in secrets"
+        return diagnostics
+
+    if not key:
+        diagnostics['error'] = "SUPABASE_ANON_KEY not configured in secrets"
+        return diagnostics
+
+    # Test actual connection
+    try:
+        response = requests.get(
+            f"{url}/rest/v1/runden",
+            params={"select": "id", "limit": "1"},
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json"
+            },
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            diagnostics['connection_test'] = "OK"
+            diagnostics['available'] = True
+
+            # Get song count
+            count_response = requests.get(
+                f"{url}/rest/v1/songs",
+                params={"select": "id"},
+                headers={
+                    "apikey": key,
+                    "Authorization": f"Bearer {key}",
+                    "Prefer": "count=exact"
+                },
+                timeout=10
+            )
+            if count_response.status_code in (200, 206):  # 206 = Partial Content (paginated)
+                count = count_response.headers.get('content-range', '').split('/')[-1]
+                diagnostics['song_count'] = int(count) if count.isdigit() else 0
+        else:
+            diagnostics['error'] = f"HTTP {response.status_code}: {response.text[:100]}"
+            diagnostics['connection_test'] = "FAILED"
+
+    except requests.exceptions.Timeout:
+        diagnostics['error'] = "Connection timeout (10s)"
+        diagnostics['connection_test'] = "TIMEOUT"
+    except requests.exceptions.RequestException as e:
+        diagnostics['error'] = f"Request error: {str(e)[:100]}"
+        diagnostics['connection_test'] = "ERROR"
+    except Exception as e:
+        diagnostics['error'] = f"Unexpected error: {str(e)[:100]}"
+        diagnostics['connection_test'] = "ERROR"
+
+    return diagnostics
+
+
 # =============================================================================
 # DATA LOADING FUNCTIONS
 # =============================================================================

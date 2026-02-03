@@ -44,10 +44,13 @@ if STREAMLIT_CLOUD:
     USE_DATABASE = True  # Force database mode in cloud
 
 # Import database functions if database mode is enabled
+DB_DIAGNOSTICS = None  # Will store diagnostic info for sidebar display
+
 if USE_DATABASE:
     try:
         from db import (
             is_database_available,
+            get_database_diagnostics,
             load_all_data_from_db,
             get_all_songs_from_db,
             get_all_contributors_from_db,
@@ -58,10 +61,16 @@ if USE_DATABASE:
             add_like_db,
             get_contributor_songs_db
         )
-        DATABASE_AVAILABLE = is_database_available()
-    except ImportError:
+        # Get detailed diagnostics instead of just bool
+        DB_DIAGNOSTICS = get_database_diagnostics()
+        DATABASE_AVAILABLE = DB_DIAGNOSTICS.get('available', False)
+    except ImportError as e:
         DATABASE_AVAILABLE = False
         USE_DATABASE = False
+        DB_DIAGNOSTICS = {'error': f'Import error: {e}', 'available': False}
+    except Exception as e:
+        DATABASE_AVAILABLE = False
+        DB_DIAGNOSTICS = {'error': f'Startup error: {e}', 'available': False}
 else:
     DATABASE_AVAILABLE = False
 
@@ -1197,6 +1206,37 @@ def main():
     # Track data source for conditional logic later
     using_database = USE_DATABASE and DATABASE_AVAILABLE
     st.session_state.using_database = using_database  # Store for use in helper functions
+
+    # ==========================================================================
+    # DEBUG SIDEBAR - Show database connection status
+    # ==========================================================================
+    with st.sidebar:
+        st.markdown("### Verbindungsstatus")
+
+        if using_database:
+            if DB_DIAGNOSTICS:
+                song_count = DB_DIAGNOSTICS.get('song_count', 0)
+                st.success(f"Datenbank: {song_count:,} Songs")
+            else:
+                st.success("Datenbank verbunden")
+        else:
+            st.warning("Lokaler Modus (Mock-Daten)")
+
+            # Show diagnostic details if database was attempted
+            if USE_DATABASE and DB_DIAGNOSTICS:
+                st.error("Datenbankverbindung fehlgeschlagen")
+                with st.expander("Details anzeigen"):
+                    st.write(f"**URL konfiguriert:** {'Ja' if DB_DIAGNOSTICS.get('url_configured') else 'Nein'}")
+                    st.write(f"**Key konfiguriert:** {'Ja' if DB_DIAGNOSTICS.get('key_configured') else 'Nein'}")
+                    if DB_DIAGNOSTICS.get('url_preview'):
+                        st.write(f"**URL:** {DB_DIAGNOSTICS.get('url_preview')}")
+                    st.write(f"**Test:** {DB_DIAGNOSTICS.get('connection_test', 'N/A')}")
+                    if DB_DIAGNOSTICS.get('error'):
+                        st.code(DB_DIAGNOSTICS.get('error'), language=None)
+            elif not USE_DATABASE:
+                st.info("USE_DATABASE=false")
+
+        st.markdown("---")
 
     if using_database:
         # === DATABASE MODE ===
