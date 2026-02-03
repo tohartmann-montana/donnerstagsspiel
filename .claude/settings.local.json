@@ -16,7 +16,15 @@
       "Bash(ping:*)",
       "Bash(dir:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Donnerstagsspiel song matcher app\n\n- Streamlit app for searching DJ song history\n- Supabase backend for data storage\n- Fuzzy search with pg_trgm\n- Best Of rankings\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd secrets debugging to diagnose cloud connection issue\n\n- Show which source provided credentials \\(st.secrets vs os.environ\\)\n- List all available secret keys\n- Helps identify if secrets are configured correctly in Streamlit Cloud\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

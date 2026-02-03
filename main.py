@@ -577,6 +577,11 @@ def get_song_connections(song_name, song_index):
     """
     # Normalize and lookup
     normalized = normalize_song_name(song_name)
+
+    # In database mode, song_index is None - connections come from DB
+    if song_index is None:
+        return []
+
     index_entry = song_index.get(normalized, {'variants': [], 'clusters': []})
     clusters = index_entry['clusters']
 
@@ -1685,7 +1690,8 @@ def main():
                                 else:
                                     # Check for variants even for non-matched songs
                                     normalized = normalize_song_name(song)
-                                    variants = song_index.get(normalized, {}).get('variants', [])
+                                    # In DB mode, song_index is None
+                                    variants = song_index.get(normalized, {}).get('variants', []) if song_index else []
                                     variant_badge = ""
                                     if len(variants) > 1:
                                         # Escape variants and join with HTML line break entity
