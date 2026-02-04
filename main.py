@@ -1461,201 +1461,201 @@ def main():
     else:
         # === MAIN SCREEN WITH TABS ===
         if is_admin:
-            tab_search, tab_bestof, tab_admin = st.tabs(["🔍 Suche", "🏆 Best Of", "🔐 Admin"])
+            tab_search, tab_bestof, tab_feedback, tab_admin = st.tabs(["🔍 Suche", "🏆 Best Of", "💬 Feedback", "🔐 Admin"])
         else:
-            tab_search, tab_bestof = st.tabs(["🔍 Suche", "🏆 Best Of"])
+            tab_search, tab_bestof, tab_feedback = st.tabs(["🔍 Suche", "🏆 Best Of", "💬 Feedback"])
 
         with tab_search:
             # === SEARCH TAB ===
             col1, col2 = st.columns([3, 1])
 
-        with col1:
-            # Use selected suggestion if available
-            default_value = st.session_state.selected_suggestion if st.session_state.selected_suggestion else ""
+            with col1:
+                # Use selected suggestion if available
+                default_value = st.session_state.selected_suggestion if st.session_state.selected_suggestion else ""
 
-            search_query = st.text_input(
-                "🔍 Song finden:",
-                value=default_value,
-                placeholder="Songname, Künstler oder Teile davon eingeben...",
-                key="search_input",
-                max_chars=200
-            )
-
-            # Clear the suggestion after it's been used
-            if st.session_state.selected_suggestion:
-                st.session_state.selected_suggestion = None
-
-            # Show autocomplete suggestions
-            if search_query and len(search_query) >= 2:
-                suggestions = [s for s in all_songs if search_query.lower() in s.lower()][:5]
-                if suggestions and search_query not in suggestions:
-                    st.caption("💡 Vorschläge:")
-                    for idx, suggestion in enumerate(suggestions):
-                        # Use index-based key to avoid issues with special characters in song names
-                        if st.button(suggestion, key=f"suggest_{idx}", use_container_width=True):
-                            st.session_state.selected_suggestion = suggestion
-                            st.rerun()
-
-        with col2:
-            fuzzy_threshold = st.slider(
-                "Genauigkeit",
-                min_value=50,
-                max_value=100,
-                value=70,
-                step=5,
-                help="Niedriger = toleranter (findet mehr Tippfehler). Höher = strenger."
-            )
-
-        if search_query:
-            # Use database or local search based on mode
-            if using_database:
-                results = search_songs_db(search_query, fuzzy_threshold)
-            else:
-                results = search_songs(search_query, song_index, fuzzy_threshold)
-
-            if results:
-                # Reset page if search context changed
-                search_context = f"{search_query}_{fuzzy_threshold}"
-                if st.session_state.prev_search_query != search_context:
-                    st.session_state.page_search = 1
-                    st.session_state.prev_search_query = search_context
-
-                # Paginate results (5 per page)
-                paginated, page, total_pages, start_num, end_num, total = render_pagination(
-                    results, 'page_search', 5
+                search_query = st.text_input(
+                    "🔍 Song finden:",
+                    value=default_value,
+                    placeholder="Songname, Künstler oder Teile davon eingeben...",
+                    key="search_input",
+                    max_chars=200
                 )
 
-                st.success(f"🎯 {total} Treffer gefunden")
-                if total > 5:
-                    st.caption(f"Zeige {start_num}-{end_num} von {total}")
+                # Clear the suggestion after it's been used
+                if st.session_state.selected_suggestion:
+                    st.session_state.selected_suggestion = None
 
-                for idx, result in enumerate(paginated, start=start_num):
-                    with st.expander(f"🎯 Treffer #{idx}: {result['seed_track']} → {result['round_display']}", expanded=True):
-                        # Compact header
-                        st.markdown(f"📍 **{result['round_display']}**")
-
-                        # Show Ausgangssong with special formatting, like button, and link button
-                        seed_contributor = result['contributors'].get(result['seed_track'], "")
-                        seed_contributor_display = f" · 👤 **{seed_contributor}**" if seed_contributor else ""
-
-                        col_seed, col_seed_like, col_seed_link = st.columns([5, 0.5, 0.5])
-                        with col_seed:
-                            st.markdown(f"⭐ **Ausgangssong:** {result['seed_track']}{seed_contributor_display}")
-                        with col_seed_like:
-                            seed_like_count = get_like_count(result['seed_track'], likes)
-                            seed_like_label = f"❤️ {seed_like_count}" if seed_like_count > 0 else "🤍"
-                            if st.button(seed_like_label, key=f"like_seed_{idx}", help="Song liken"):
-                                add_like(result['seed_track'])
-                                st.rerun()
-                        with col_seed_link:
-                            if st.button("🔗", key=f"link_seed_{idx}", help="Verknüpfungen anzeigen"):
-                                # Save search query before navigating
-                                st.session_state.last_search_query = search_query
-                                navigate_to_song(result['seed_track'])
+                # Show autocomplete suggestions
+                if search_query and len(search_query) >= 2:
+                    suggestions = [s for s in all_songs if search_query.lower() in s.lower()][:5]
+                    if suggestions and search_query not in suggestions:
+                        st.caption("💡 Vorschläge:")
+                        for idx, suggestion in enumerate(suggestions):
+                            # Use index-based key to avoid issues with special characters in song names
+                            if st.button(suggestion, key=f"suggest_{idx}", use_container_width=True):
+                                st.session_state.selected_suggestion = suggestion
                                 st.rerun()
 
-                        st.markdown("---")
-                        st.markdown("**🎵 Passende Songs:**")
+            with col2:
+                fuzzy_threshold = st.slider(
+                    "Genauigkeit",
+                    min_value=50,
+                    max_value=100,
+                    value=70,
+                    step=5,
+                    help="Niedriger = toleranter (findet mehr Tippfehler). Höher = strenger."
+                )
 
-                        for song_idx, song in enumerate(result['all_songs'], 1):
-                            # Skip the seed track in the list (already shown above)
-                            if song == result['seed_track']:
-                                continue
+            if search_query:
+                # Use database or local search based on mode
+                if using_database:
+                    results = search_songs_db(search_query, fuzzy_threshold)
+                else:
+                    results = search_songs(search_query, song_index, fuzzy_threshold)
 
-                            contributor = result['contributors'].get(song, "")
+                if results:
+                    # Reset page if search context changed
+                    search_context = f"{search_query}_{fuzzy_threshold}"
+                    if st.session_state.prev_search_query != search_context:
+                        st.session_state.page_search = 1
+                        st.session_state.prev_search_query = search_context
 
-                            # Create four columns: song name, like button, link button, contributor button
-                            col_song, col_like, col_link, col_contributor = st.columns([2.5, 0.5, 0.5, 1])
+                    # Paginate results (5 per page)
+                    paginated, page, total_pages, start_num, end_num, total = render_pagination(
+                        results, 'page_search', 5
+                    )
 
-                            with col_song:
-                                # Check if this song matched the search
-                                if song in result['matched_songs']:
-                                    match_score = result['match_scores'].get(song, 0)
+                    st.success(f"🎯 {total} Treffer gefunden")
+                    if total > 5:
+                        st.caption(f"Zeige {start_num}-{end_num} von {total}")
 
-                                    # Color code the badge based on match score
-                                    if match_score == 100:
-                                        badge_color = "#00CC00"  # Green for perfect match
-                                        badge_emoji = "✓"
-                                    elif match_score >= 85:
-                                        badge_color = "#66CC00"  # Light green
-                                        badge_emoji = "~"
-                                    elif match_score >= 70:
-                                        badge_color = "#FFB800"  # Orange
-                                        badge_emoji = "~"
-                                    else:
-                                        badge_color = "#FF6B6B"  # Red
-                                        badge_emoji = "?"
+                    for idx, result in enumerate(paginated, start=start_num):
+                        with st.expander(f"🎯 Treffer #{idx}: {result['seed_track']} → {result['round_display']}", expanded=True):
+                            # Compact header
+                            st.markdown(f"📍 **{result['round_display']}**")
 
-                                    # Check for variants
-                                    variants = result.get('song_variants', {}).get(song, [])
-                                    variant_badge = ""
-                                    if len(variants) > 1:
-                                        # Escape variants and join with HTML line break entity
-                                        escaped_variants = [html.escape(v, quote=True) for v in variants]
-                                        title_text = '&#10;'.join(escaped_variants)
-                                        variant_badge = (
-                                            f' <span style="background-color: #6366F1; color: white; padding: 2px 8px; '
-                                            f'border-radius: 12px; font-size: 0.75em; cursor: help;" '
-                                            f'title="{title_text}">'
-                                            f'{len(variants)} Varianten</span>'
-                                        )
+                            # Show Ausgangssong with special formatting, like button, and link button
+                            seed_contributor = result['contributors'].get(result['seed_track'], "")
+                            seed_contributor_display = f" · 👤 **{seed_contributor}**" if seed_contributor else ""
 
-                                    escaped_song = html.escape(song)
-                                    st.markdown(
-                                        f"{song_idx}. **{escaped_song}** "
-                                        f"<span style='background-color: {badge_color}; color: white; padding: 2px 8px; "
-                                        f"border-radius: 12px; font-size: 0.8em; font-weight: bold;'>"
-                                        f"{badge_emoji} {match_score}%</span>{variant_badge}",
-                                        unsafe_allow_html=True
-                                    )
-                                else:
-                                    # Check for variants even for non-matched songs
-                                    normalized = normalize_song_name(song)
-                                    # In DB mode, song_index is None
-                                    variants = song_index.get(normalized, {}).get('variants', []) if song_index else []
-                                    variant_badge = ""
-                                    if len(variants) > 1:
-                                        # Escape variants and join with HTML line break entity
-                                        escaped_variants = [html.escape(v, quote=True) for v in variants]
-                                        title_text = '&#10;'.join(escaped_variants)
-                                        variant_badge = (
-                                            f' <span style="background-color: #6366F1; color: white; padding: 2px 8px; '
-                                            f'border-radius: 12px; font-size: 0.75em; cursor: help;" '
-                                            f'title="{title_text}">'
-                                            f'{len(variants)} Varianten</span>'
-                                        )
-                                    escaped_song = html.escape(song)
-                                    st.markdown(f"{song_idx}. {escaped_song}{variant_badge}", unsafe_allow_html=True)
-
-                            with col_like:
-                                # Like button with heart icon
-                                like_count = get_like_count(song, likes)
-                                like_label = f"❤️ {like_count}" if like_count > 0 else "🤍"
-                                if st.button(like_label, key=f"like_{idx}_{song_idx}", help="Song liken"):
-                                    add_like(song)
+                            col_seed, col_seed_like, col_seed_link = st.columns([5, 0.5, 0.5])
+                            with col_seed:
+                                st.markdown(f"⭐ **Ausgangssong:** {result['seed_track']}{seed_contributor_display}")
+                            with col_seed_like:
+                                seed_like_count = get_like_count(result['seed_track'], likes)
+                                seed_like_label = f"❤️ {seed_like_count}" if seed_like_count > 0 else "🤍"
+                                if st.button(seed_like_label, key=f"like_seed_{idx}", help="Song liken"):
+                                    add_like(result['seed_track'])
                                     st.rerun()
-
-                            with col_link:
-                                # Add connection button
-                                if st.button("🔗", key=f"link_{idx}_{song_idx}", help="Verknüpfungen anzeigen"):
+                            with col_seed_link:
+                                if st.button("🔗", key=f"link_seed_{idx}", help="Verknüpfungen anzeigen"):
                                     # Save search query before navigating
                                     st.session_state.last_search_query = search_query
-                                    navigate_to_song(song)
+                                    navigate_to_song(result['seed_track'])
                                     st.rerun()
 
-                            with col_contributor:
-                                if contributor:
-                                    # Make contributor clickable
-                                    if st.button(f"👤 {contributor}", key=f"contrib_{idx}_{song_idx}", use_container_width=True):
-                                        # Save search query before navigating
-                                        st.session_state.last_search_query = search_query
-                                        navigate_to_contributor(contributor)
+                            st.markdown("---")
+                            st.markdown("**🎵 Passende Songs:**")
+
+                            for song_idx, song in enumerate(result['all_songs'], 1):
+                                # Skip the seed track in the list (already shown above)
+                                if song == result['seed_track']:
+                                    continue
+
+                                contributor = result['contributors'].get(song, "")
+
+                                # Create four columns: song name, like button, link button, contributor button
+                                col_song, col_like, col_link, col_contributor = st.columns([2.5, 0.5, 0.5, 1])
+
+                                with col_song:
+                                    # Check if this song matched the search
+                                    if song in result['matched_songs']:
+                                        match_score = result['match_scores'].get(song, 0)
+
+                                        # Color code the badge based on match score
+                                        if match_score == 100:
+                                            badge_color = "#00CC00"  # Green for perfect match
+                                            badge_emoji = "✓"
+                                        elif match_score >= 85:
+                                            badge_color = "#66CC00"  # Light green
+                                            badge_emoji = "~"
+                                        elif match_score >= 70:
+                                            badge_color = "#FFB800"  # Orange
+                                            badge_emoji = "~"
+                                        else:
+                                            badge_color = "#FF6B6B"  # Red
+                                            badge_emoji = "?"
+
+                                        # Check for variants
+                                        variants = result.get('song_variants', {}).get(song, [])
+                                        variant_badge = ""
+                                        if len(variants) > 1:
+                                            # Escape variants and join with HTML line break entity
+                                            escaped_variants = [html.escape(v, quote=True) for v in variants]
+                                            title_text = '&#10;'.join(escaped_variants)
+                                            variant_badge = (
+                                                f' <span style="background-color: #6366F1; color: white; padding: 2px 8px; '
+                                                f'border-radius: 12px; font-size: 0.75em; cursor: help;" '
+                                                f'title="{title_text}">'
+                                                f'{len(variants)} Varianten</span>'
+                                            )
+
+                                        escaped_song = html.escape(song)
+                                        st.markdown(
+                                            f"{song_idx}. **{escaped_song}** "
+                                            f"<span style='background-color: {badge_color}; color: white; padding: 2px 8px; "
+                                            f"border-radius: 12px; font-size: 0.8em; font-weight: bold;'>"
+                                            f"{badge_emoji} {match_score}%</span>{variant_badge}",
+                                            unsafe_allow_html=True
+                                        )
+                                    else:
+                                        # Check for variants even for non-matched songs
+                                        normalized = normalize_song_name(song)
+                                        # In DB mode, song_index is None
+                                        variants = song_index.get(normalized, {}).get('variants', []) if song_index else []
+                                        variant_badge = ""
+                                        if len(variants) > 1:
+                                            # Escape variants and join with HTML line break entity
+                                            escaped_variants = [html.escape(v, quote=True) for v in variants]
+                                            title_text = '&#10;'.join(escaped_variants)
+                                            variant_badge = (
+                                                f' <span style="background-color: #6366F1; color: white; padding: 2px 8px; '
+                                                f'border-radius: 12px; font-size: 0.75em; cursor: help;" '
+                                                f'title="{title_text}">'
+                                                f'{len(variants)} Varianten</span>'
+                                            )
+                                        escaped_song = html.escape(song)
+                                        st.markdown(f"{song_idx}. {escaped_song}{variant_badge}", unsafe_allow_html=True)
+
+                                with col_like:
+                                    # Like button with heart icon
+                                    like_count = get_like_count(song, likes)
+                                    like_label = f"❤️ {like_count}" if like_count > 0 else "🤍"
+                                    if st.button(like_label, key=f"like_{idx}_{song_idx}", help="Song liken"):
+                                        add_like(song)
                                         st.rerun()
 
-                # Pagination controls
-                render_pagination_controls('page_search', page, total_pages)
-            else:
-                st.warning("Keine Songs gefunden")
+                                with col_link:
+                                    # Add connection button
+                                    if st.button("🔗", key=f"link_{idx}_{song_idx}", help="Verknüpfungen anzeigen"):
+                                        # Save search query before navigating
+                                        st.session_state.last_search_query = search_query
+                                        navigate_to_song(song)
+                                        st.rerun()
+
+                                with col_contributor:
+                                    if contributor:
+                                        # Make contributor clickable
+                                        if st.button(f"👤 {contributor}", key=f"contrib_{idx}_{song_idx}", use_container_width=True):
+                                            # Save search query before navigating
+                                            st.session_state.last_search_query = search_query
+                                            navigate_to_contributor(contributor)
+                                            st.rerun()
+
+                    # Pagination controls
+                    render_pagination_controls('page_search', page, total_pages)
+                else:
+                    st.warning("Keine Songs gefunden")
 
         with tab_bestof:
             # === BEST OF TAB ===
@@ -1721,6 +1721,62 @@ def main():
                 render_pagination_controls('page_bestof', page, total_pages)
             else:
                 st.info("Keine Songs gefunden")
+
+        with tab_feedback:
+            # === FEEDBACK TAB ===
+            st.markdown("## 💬 Feedback geben")
+            st.markdown("Hast du einen Bug gefunden, eine Idee für ein neues Feature oder sonstiges Feedback? Lass es uns wissen!")
+
+            # Initialize feedback form state
+            if 'feedback_submitted' not in st.session_state:
+                st.session_state.feedback_submitted = False
+
+            if st.session_state.feedback_submitted:
+                st.success("✅ Vielen Dank für dein Feedback! Wir werden es uns ansehen.")
+                if st.button("Weiteres Feedback geben"):
+                    st.session_state.feedback_submitted = False
+                    st.rerun()
+            else:
+                with st.form("feedback_form"):
+                    # Feedback type selection
+                    feedback_type = st.selectbox(
+                        "Art des Feedbacks",
+                        options=["Bug", "Feature", "Other"],
+                        format_func=lambda x: {"Bug": "🐛 Bug / Fehler", "Feature": "💡 Feature-Wunsch", "Other": "💬 Sonstiges"}.get(x, x)
+                    )
+
+                    # Description
+                    feedback_description = st.text_area(
+                        "Beschreibung",
+                        placeholder="Beschreibe den Bug, das gewünschte Feature oder dein Feedback...",
+                        max_chars=2000,
+                        height=150
+                    )
+
+                    # Optional contact
+                    feedback_contact = st.text_input(
+                        "Kontakt (optional)",
+                        placeholder="E-Mail oder Name, falls wir Rückfragen haben",
+                        max_chars=100
+                    )
+
+                    # Submit button
+                    submitted = st.form_submit_button("📤 Feedback absenden", use_container_width=True)
+
+                    if submitted:
+                        if not feedback_description.strip():
+                            st.error("Bitte gib eine Beschreibung ein.")
+                        else:
+                            success = add_feedback(
+                                feedback_type=feedback_type,
+                                description=feedback_description.strip(),
+                                contact=feedback_contact.strip()
+                            )
+                            if success:
+                                st.session_state.feedback_submitted = True
+                                st.rerun()
+                            else:
+                                st.error("Feedback konnte nicht gespeichert werden. Bitte versuche es später erneut.")
 
         # === ADMIN TAB (only visible with ?admin=true) ===
         if is_admin:
