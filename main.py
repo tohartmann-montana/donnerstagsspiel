@@ -768,8 +768,8 @@ def main():
         initial_sidebar_state="collapsed"
     )
 
-    # Admin mode disabled for public release
-    is_admin = False
+    # Enable admin mode via URL parameter ?admin=true
+    is_admin = st.query_params.get("admin", "false").lower() == "true"
 
     # Initialize theme state
     if 'light_mode' not in st.session_state:
