@@ -1093,6 +1093,14 @@ def main():
             st.session_state.light_mode = not st.session_state.light_mode
             st.rerun()
 
+    # Home button - resets navigation to main search view
+    if st.button("🏠 Home", key="home_button", help="Zurück zur Startseite"):
+        st.session_state.selected_song = None
+        st.session_state.selected_contributor = None
+        st.session_state.navigation_history = []
+        st.session_state.last_search_query = ""
+        st.rerun()
+
     # Initialize session state for filters
     if 'selected_contributor' not in st.session_state:
         st.session_state.selected_contributor = None
