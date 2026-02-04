@@ -100,6 +100,32 @@ Text:        #E2E8F0  (Light Grey)
 - Best Of: 15 per page
 - Prev/Next navigation with page indicator
 
+### 8. Feedback System
+- Users can submit feedback via the **Feedback tab** (💬)
+- Three feedback types: Bug 🐛, Feature 💡, Other 💬
+- Optional contact field for follow-up
+- Stored locally in `data/feedback.json`
+- **Functions:**
+  - `add_feedback(type, description, contact)` - saves new entry
+  - `load_feedback()` - loads all feedback as list
+  - `save_feedback(list)` - writes feedback to JSON
+
+### 9. Admin Mode
+- Access via URL parameter: `?admin=true`
+- Shows 4th tab: **Admin** (🔐)
+- Admin tab displays:
+  - All submitted feedback entries
+  - CSV export button
+  - Entry details: type, description, contact, timestamp, theme
+- **IMPORTANT:** Admin mode must be enabled via `st.query_params`, NOT hardcoded!
+```python
+# CORRECT - Enable via URL parameter
+is_admin = st.query_params.get("admin", "false").lower() == "true"
+
+# WRONG - Never hardcode this!
+is_admin = False  # This disables admin permanently
+```
+
 ## Common Mistakes & How to Avoid
 
 ### ❌ Mistake 1: Wrong Contributor Mapping
@@ -273,6 +299,39 @@ get_top_songs_db.clear()
 ```
 **Note:** For immediate updates during testing, reduce TTL or add a cache-clear button
 
+### ❌ Mistake 16: Hardcoded Admin Mode
+**What happened:** `is_admin = False` was hardcoded, disabling admin tab permanently
+**Why wrong:** Admin tab (which shows user feedback) was never visible, even with `?admin=true`
+**Solution:** Enable admin via URL parameter, never hardcode:
+```python
+# CORRECT
+is_admin = st.query_params.get("admin", "false").lower() == "true"
+
+# WRONG - This disables admin forever!
+is_admin = False
+```
+**Learning:** Feature flags should be configurable, not hardcoded. Use URL params or environment variables.
+
+### ❌ Mistake 17: Tab Content Outside Tab Block
+**What happened:** Content after `with tab_search:` was at wrong indentation level
+**Why wrong:** Search content rendered outside tabs, breaking tab navigation
+**Solution:** Ensure ALL tab content is properly indented inside `with tab_X:` block:
+```python
+# CORRECT
+with tab_search:
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        search_query = st.text_input(...)  # Inside tab_search
+    # ... all search content indented here
+
+# WRONG - col1 content is OUTSIDE tab_search!
+with tab_search:
+    col1, col2 = st.columns([3, 1])
+with col1:  # <-- Same indentation as tab_search = OUTSIDE!
+    search_query = st.text_input(...)
+```
+**Learning:** Always verify indentation when working with Streamlit tabs/columns.
+
 ## Song Normalization Logic (Sprint 5)
 
 ### Why Normalization?
@@ -357,7 +416,8 @@ donnerstagsspiel/
 ├── data/
 │   ├── song_matcher_mock.xlsx     # Mock data for testing
 │   ├── donnerstagsspiel-data.xlsx # Real production data
-│   └── likes.json                 # User likes storage (local only)
+│   ├── likes.json                 # User likes storage (local only)
+│   └── feedback.json              # User feedback storage (local only)
 ├── .streamlit/
 │   ├── config.toml                # Theme configuration
 │   └── secrets.toml.example       # Template for cloud secrets
@@ -497,6 +557,9 @@ st.session_state.page_bestof           # Current page in Best Of tab
 st.session_state.prev_search_query        # Detect search context changes
 st.session_state.prev_selected_song       # Detect song context changes
 st.session_state.prev_selected_contributor # Detect contributor context changes
+
+# Feedback state
+st.session_state.feedback_submitted       # True after successful feedback submission
 ```
 
 **IMPORTANT:** Never modify `search_input` directly - it's managed by the text_input widget. Use `selected_suggestion` to pre-fill the search box on rerun.
@@ -781,8 +844,8 @@ st.session_state.last_search_query     # Preserved search when drilling
 
 ---
 
-**Last Updated:** 2026-02-03
-**Version:** 4.0 (Cloud Deployment MVP)
+**Last Updated:** 2026-02-04
+**Version:** 5.0 (Feedback System & Admin Mode)
 **Status:** Production-ready, deployed on Streamlit Cloud with Supabase backend
 
 ## Sprint History
@@ -825,3 +888,11 @@ st.session_state.last_search_query     # Preserved search when drilling
   - `USER_GUIDE.md` - German user guide for testers
   - Updated README with cloud deployment instructions
   - Secrets configuration via `st.secrets` for cloud deployment
+- **Sprint 7 (COMPLETED):** Feedback System & Admin Mode
+  - Feedback tab (💬) for users to submit bugs and feature requests
+  - Three feedback types: Bug, Feature, Other
+  - Feedback storage in `data/feedback.json`
+  - Admin mode via URL parameter `?admin=true`
+  - Admin tab (🔐) shows all feedback with CSV export
+  - Fixed tab indentation bug (content was outside tab block)
+  - Fixed hardcoded `is_admin = False` that disabled admin permanently
