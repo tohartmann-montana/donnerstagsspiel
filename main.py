@@ -138,45 +138,6 @@ def save_likes(likes):
         st.warning(f"Likes konnten nicht gespeichert werden: {e}")
 
 
-# ===== Feedback Storage Functions =====
-FEEDBACK_FILE = Path("data/feedback.json")
-
-def load_feedback():
-    """Load feedback from JSON file."""
-    if FEEDBACK_FILE.exists():
-        try:
-            with open(FEEDBACK_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return []
-    return []
-
-def save_feedback(feedback_list):
-    """Save feedback to JSON file."""
-    try:
-        FEEDBACK_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(FEEDBACK_FILE, 'w', encoding='utf-8') as f:
-            json.dump(feedback_list, f, ensure_ascii=False, indent=2)
-        return True
-    except (IOError, OSError):
-        return False
-
-def add_feedback(feedback_type: str, description: str, contact: str = "") -> bool:
-    """Add new feedback entry."""
-    from datetime import datetime
-
-    feedback_list = load_feedback()
-    feedback_list.append({
-        "id": len(feedback_list) + 1,
-        "type": feedback_type,
-        "description": description,
-        "contact": contact,
-        "theme": "light" if st.session_state.get('light_mode', False) else "dark",
-        "timestamp": datetime.now().isoformat()
-    })
-    return save_feedback(feedback_list)
-
-
 def add_like(song_name):
     """Add a like to a song and return the new count. Includes debounce protection."""
     import time
@@ -767,9 +728,6 @@ def main():
         layout="wide",
         initial_sidebar_state="collapsed"
     )
-
-    # Enable admin mode via URL parameter ?admin=true
-    is_admin = st.query_params.get("admin", "false").lower() == "true"
 
     # Initialize theme state
     if 'light_mode' not in st.session_state:
@@ -1468,10 +1426,7 @@ def main():
 
     else:
         # === MAIN SCREEN WITH TABS ===
-        if is_admin:
-            tab_search, tab_bestof, tab_feedback, tab_admin = st.tabs(["🔍 Suche", "🏆 Best Of", "💬 Feedback", "🔐 Admin"])
-        else:
-            tab_search, tab_bestof, tab_feedback = st.tabs(["🔍 Suche", "🏆 Best Of", "💬 Feedback"])
+        tab_search, tab_bestof = st.tabs(["🔍 Suche", "🏆 Best Of"])
 
         with tab_search:
             # === SEARCH TAB ===
@@ -1729,101 +1684,6 @@ def main():
                 render_pagination_controls('page_bestof', page, total_pages)
             else:
                 st.info("Keine Songs gefunden")
-
-        with tab_feedback:
-            # === FEEDBACK TAB ===
-            st.markdown("## 💬 Feedback geben")
-            st.markdown("Hast du einen Bug gefunden, eine Idee für ein neues Feature oder sonstiges Feedback? Lass es uns wissen!")
-
-            # Initialize feedback form state
-            if 'feedback_submitted' not in st.session_state:
-                st.session_state.feedback_submitted = False
-
-            if st.session_state.feedback_submitted:
-                st.success("✅ Vielen Dank für dein Feedback! Wir werden es uns ansehen.")
-                if st.button("Weiteres Feedback geben"):
-                    st.session_state.feedback_submitted = False
-                    st.rerun()
-            else:
-                with st.form("feedback_form"):
-                    # Feedback type selection
-                    feedback_type = st.selectbox(
-                        "Art des Feedbacks",
-                        options=["Bug", "Feature", "Other"],
-                        format_func=lambda x: {"Bug": "🐛 Bug / Fehler", "Feature": "💡 Feature-Wunsch", "Other": "💬 Sonstiges"}.get(x, x)
-                    )
-
-                    # Description
-                    feedback_description = st.text_area(
-                        "Beschreibung",
-                        placeholder="Beschreibe den Bug, das gewünschte Feature oder dein Feedback...",
-                        max_chars=2000,
-                        height=150
-                    )
-
-                    # Optional contact
-                    feedback_contact = st.text_input(
-                        "Kontakt (optional)",
-                        placeholder="E-Mail oder Name, falls wir Rückfragen haben",
-                        max_chars=100
-                    )
-
-                    # Submit button
-                    submitted = st.form_submit_button("📤 Feedback absenden", use_container_width=True)
-
-                    if submitted:
-                        if not feedback_description.strip():
-                            st.error("Bitte gib eine Beschreibung ein.")
-                        else:
-                            success = add_feedback(
-                                feedback_type=feedback_type,
-                                description=feedback_description.strip(),
-                                contact=feedback_contact.strip()
-                            )
-                            if success:
-                                st.session_state.feedback_submitted = True
-                                st.rerun()
-                            else:
-                                st.error("Feedback konnte nicht gespeichert werden. Bitte versuche es später erneut.")
-
-        # === ADMIN TAB (only visible with ?admin=true) ===
-        if is_admin:
-            with tab_admin:
-                st.markdown("## 🔐 Feedback-Übersicht")
-
-                feedback_list = load_feedback()
-
-                if feedback_list:
-                    st.info(f"**{len(feedback_list)} Feedback-Einträge**")
-
-                    # Export button
-                    import io
-                    csv_output = io.StringIO()
-                    csv_output.write("ID,Typ,Beschreibung,Kontakt,Theme,Timestamp\n")
-                    for fb in feedback_list:
-                        desc = fb['description'].replace('"', '""').replace('\n', ' ')
-                        csv_output.write(f"{fb['id']},{fb['type']},\"{desc}\",{fb.get('contact', '')},{fb.get('theme', '')},{fb['timestamp']}\n")
-
-                    st.download_button(
-                        "📥 Feedback als CSV exportieren",
-                        csv_output.getvalue(),
-                        "feedback_export.csv",
-                        "text/csv"
-                    )
-
-                    st.markdown("---")
-
-                    # Show feedback entries (newest first)
-                    for fb in reversed(feedback_list):
-                        type_emoji = {"Bug": "🐛", "Feature": "💡", "Other": "💬"}.get(fb['type'], "📝")
-
-                        with st.expander(f"{type_emoji} #{fb['id']} - {fb['type']} ({fb['timestamp'][:10]})"):
-                            st.markdown(f"**Beschreibung:**\n\n{fb['description']}")
-                            if fb.get('contact'):
-                                st.markdown(f"**Kontakt:** {fb['contact']}")
-                            st.caption(f"Theme: {fb.get('theme', 'N/A')} | {fb['timestamp']}")
-                else:
-                    st.info("Noch kein Feedback eingegangen.")
 
 if __name__ == "__main__":
     main()
